@@ -8,6 +8,7 @@ module Task3 where
 
 import Task1 (Parse (..), splitWords)
 import Task2 (Eval (..), Expr, evalExpr)
+import Data.List (nub)
 
 -- | Solves SAT problem for given boolean formula written in Reverse Polish Notation
 --
@@ -44,7 +45,7 @@ isTrue x vrs = case evalExpr vrs x of
   (Just b) -> b
 
 getVariables :: String -> [String]
-getVariables s = go (splitWords s) []
+getVariables s = nub (go (splitWords s) [])
   where
     go ("and" : ss) list = go ss list
     go ("or" : ss) list = go ss list
