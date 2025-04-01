@@ -62,7 +62,7 @@ update (l : ls) = case l of
   (s, True) -> (s, False) : update ls
 
 getCombinations :: [String] -> [[(String, Bool)]]
-getCombinations v = go (2 ^ length v) [getCombinationsStarter v]
+getCombinations v = go (2 ^ length v - 1) [getCombinationsStarter v]
   where
     go :: Integer -> [[(String, Bool)]] -> [[(String, Bool)]]
     go cnt ps@(p : _)
