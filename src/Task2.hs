@@ -5,7 +5,8 @@
 
 module Task2 where
 
-import Task1 (Parse, Parse(..))
+import Task1 (Parse, Parse(..), splitWords)
+import Data.Maybe (isJust)
 
 -- * Expression data type
 
@@ -42,7 +43,26 @@ data IntOp = Add | Mul | Sub
 -- Nothing
 --
 instance (Parse a, Parse op) => Parse (Expr a op) where
-  parse = error "TODO: define parse (Parse (Expr a op))"
+  parse = parseWords . splitWords where
+    parseWords :: [String] -> Maybe (Expr a op)
+    parseWords ss = parseWords' ss []
+
+    getExpr :: Maybe a -> Expr a op
+    getExpr (Just a) = Lit a
+    getExpr Nothing  = undefined
+
+    getBinOp :: Maybe op -> Expr a op -> Expr a op -> Expr a op
+    getBinOp (Just op) = BinOp op
+    getBinOp Nothing   = undefined
+
+    parseWords' :: [String] -> [Expr a op] -> Maybe (Expr a op)
+    parseWords' (s:ss) stack    | isJust sub = parseWords' ss (getExpr sub : stack) where
+      sub = parse s :: Maybe a
+    parseWords' (s:ss) (l:r:es) | isJust sub = parseWords' ss (getBinOp sub l r : es) where
+      sub = parse s :: Maybe op
+    parseWords' [] [s] = Just s
+    parseWords' _ _    = Nothing
+
 
 -- * Evaluation
 
