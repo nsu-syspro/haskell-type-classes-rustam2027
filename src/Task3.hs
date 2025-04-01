@@ -62,14 +62,15 @@ update (l : ls) = case l of
   (s, True) -> (s, False) : update ls
 
 getCombinations :: [String] -> [[(String, Bool)]]
-getCombinations v = go [getCombinationsStarter v]
+getCombinations v = go (2 ^ length v) [getCombinationsStarter v]
   where
-    go ps@(p : _)
-      | all snd p = ps
-      | otherwise = go (up : ps)
+    go :: Integer -> [[(String, Bool)]] -> [[(String, Bool)]]
+    go cnt ps@(p : _)
+      | cnt == 0 = ps
+      | otherwise = go (cnt - 1) (up : ps)
       where
         up = update p
-    go _ = undefined
+    go _ _ = undefined
 
 data BoolOp = And | Xor | Or
   deriving (Show)
