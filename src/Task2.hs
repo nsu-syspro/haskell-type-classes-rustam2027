@@ -1,11 +1,13 @@
-{-# OPTIONS_GHC -Wall #-}
 -- The above pragma enables all warnings
-
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Task2 where
 
-import Task1 (Parse, Parse(..))
+import Data.Char (isDigit)
+import Data.Maybe (isJust)
+import Task1 (Parse (..), parseInteger', splitWords)
 
 -- * Expression data type
 
@@ -13,15 +15,15 @@ import Task1 (Parse, Parse(..))
 -- - Literals of type 'a'
 -- - Variables with arbitrary 'String' names
 -- - Binary operations of type 'op'
-data Expr a op =
-    Lit a
+data Expr a op
+  = Lit a
   | Var String
   | BinOp op (Expr a op) (Expr a op)
-  deriving Show
+  deriving (Show)
 
 -- | Integer binary operations
 data IntOp = Add | Mul | Sub
-  deriving Show
+  deriving (Show)
 
 -- * Parsing
 
@@ -40,9 +42,26 @@ data IntOp = Add | Mul | Sub
 -- Nothing
 -- >>> parse "2 3" :: Maybe (Expr Integer IntOp)
 -- Nothing
---
 instance (Parse a, Parse op) => Parse (Expr a op) where
-  parse = error "TODO: define parse (Parse (Expr a op))"
+  parse = parseWords . splitWords
+    where
+      parseWords ss = parseWords' ss []
+
+      getExpr (Just a) = Lit a
+      getExpr Nothing = undefined
+
+      getBinOp (Just op) = BinOp op
+      getBinOp Nothing = undefined
+
+      parseWords' (s : ss) stack | isJust sub = parseWords' ss (getExpr sub : stack)
+        where
+          sub = parse s
+      parseWords' (s : ss) (l : r : es) | isJust sub = parseWords' ss (getBinOp sub r l : es)
+        where
+          sub = parse s
+      parseWords' (s : ss) stack = parseWords' ss (Var s : stack)
+      parseWords' [] [s] = Just s
+      parseWords' _ _ = Nothing
 
 -- * Evaluation
 
@@ -50,6 +69,12 @@ instance (Parse a, Parse op) => Parse (Expr a op) where
 class Eval a op where
   -- | Evaluates given binary operation with provided arguments
   evalBinOp :: op -> a -> a -> a
+
+findVar :: [(String, a)] -> String -> Maybe a
+findVar [] _ = Nothing
+findVar ((s, v) : ss) f
+  | s == f = Just v
+  | otherwise = findVar ss f
 
 -- | Evaluates given 'Expr' using given association list of variable values
 --
@@ -63,9 +88,15 @@ class Eval a op where
 -- Just 5
 -- >>> evalExpr [("x", 3)] (BinOp Add (Lit 2) (Var "y")) :: Maybe Integer
 -- Nothing
---
 evalExpr :: (Eval a op) => [(String, a)] -> Expr a op -> Maybe a
-evalExpr = error "TODO: define evalExpr"
+evalExpr _ (Lit l) = Just l
+evalExpr vrs (Var v) = findVar vrs v
+evalExpr vrs (BinOp op l r) = case (el, er) of
+  (Just ul, Just ur) -> Just (evalBinOp op ul ur)
+  _ -> Nothing
+  where
+    el = evalExpr vrs l
+    er = evalExpr vrs r
 
 -- | Parses given integer expression in Reverse Polish Notation and evaluates it
 -- using given association list of variable values
@@ -87,9 +118,28 @@ evalExpr = error "TODO: define evalExpr"
 -- Nothing
 -- >>> evaluateInteger [] "2 3"
 -- Nothing
---
 evaluateInteger :: [(String, Integer)] -> String -> Maybe Integer
-evaluateInteger = error "TODO: define evaluateInteger"
+evaluateInteger var s = case parse s :: Maybe (Expr Integer IntOp) of
+  Nothing -> Nothing
+  Just e  -> evalExpr var e
+
+instance Parse Integer where
+  parse s
+    | all isDigit s = Just (parseInteger' s)
+    | otherwise = Nothing
+
+instance Parse IntOp where
+  parse s = case s of
+    "+" -> Just Add
+    "*" -> Just Mul
+    "-" -> Just Sub
+    _   -> Nothing
+
+instance Eval Integer IntOp where
+  evalBinOp op = case op of
+    Add -> (+)
+    Mul -> (*)
+    Sub -> (-)
 
 -- | Parses given expression in Reverse Polish Notation and evaluates it
 -- using given association list of variable values
@@ -99,7 +149,6 @@ evaluateInteger = error "TODO: define evaluateInteger"
 --
 -- The 'Reify' function is required to reconcile generic type
 -- of intermediate 'Expr' expression with concrete type using 'a' and 'op'.
---
 evaluate :: (Eval a op, Parse a, Parse op) => Reify a op -> [(String, a)] -> String -> Maybe a
 evaluate reify m s = case parse s of
   Just e -> evalExpr m (reify e)
